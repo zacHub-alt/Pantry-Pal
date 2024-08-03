@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Box, Button, Container, Typography, TextField, AppBar, Toolbar, CssBaseline } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { auth } from '../../firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth, googleProvider } from '../../firebase';
+import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 
 const theme = createTheme({
   palette: {
@@ -58,6 +58,15 @@ const SignInPage = () => {
 
   const handleSignUp = () => {
     router.push('/signup');
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+      router.push('/pantry');
+    } catch (error) {
+      console.error('Error signing in with Google:', error);
+    }
   };
 
   return (
@@ -148,6 +157,14 @@ const SignInPage = () => {
               sx={{ mt: 3, mb: 2 }}
             >
               Sign In
+            </Button>
+            <Button
+              fullWidth
+              variant="contained"
+              color="secondary"
+              onClick={handleGoogleSignIn}
+            >
+              Sign In with Google
             </Button>
             <Button
               fullWidth

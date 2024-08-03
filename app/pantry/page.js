@@ -6,7 +6,7 @@ import { styled } from '@mui/material/styles';
 import { AddShoppingCart, Edit, Delete, Logout, AccountCircle } from '@mui/icons-material';
 import { collection, getDocs, getDoc, setDoc, doc, deleteDoc } from 'firebase/firestore';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
-import { firestore, auth } from '@/firebase';
+import { firestore, auth } from '../../firebase';
 import { useRouter } from 'next/navigation';
 import { Analytics } from "@vercel/analytics/react";
 import withAuth from '../protectedRoute';
@@ -213,7 +213,7 @@ const Page = () => {
   const handleGetRecipes = async () => {
     setLoading(true);
     const inventory = await getInventoryItems();
-  
+
     const response = await fetch('/api/recipe-suggestions', {
       method: 'POST',
       headers: {
@@ -221,7 +221,7 @@ const Page = () => {
       },
       body: JSON.stringify({ items: inventory }), // Changed from inventory to items
     });
-  
+
     const data = await response.json();
     setSuggestions(data.recipe); // Adjusted based on the previous response structure
     setLoading(false);
@@ -263,62 +263,62 @@ const Page = () => {
           <Card sx={{ flex: 1 }}>
             <CardHeader title={editingItem ? "Edit Pantry Item" : "Add Pantry Item"} />
             <CardContent>
-              <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box>
-                  <Typography variant="body1">Name</Typography>
-                  <TextField
-                    placeholder="Enter item name"
-                    fullWidth
-                    value={newItemName}
-                    onChange={(e) => setNewItemName(e.target.value)}
-                  />
-                </Box>
-                <Box>
-                  <Typography variant="body1">Quantity</Typography>
-                  <TextField
-                    type="number"
-                    placeholder="Enter quantity"
-                    fullWidth
-                    value={newItemQuantity}
-                    onChange={(e) => setNewItemQuantity(e.target.value)}
-                  />
-                </Box>
-                <Box>
-                  <Typography variant="body1">Expiration Date</Typography>
-                  <TextField
-                    type="date"
-                    fullWidth
-                    value={newItemExpiration}
-                    onChange={(e) => setNewItemExpiration(e.target.value)}
-                  />
-                </Box>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={() => {
-                    if (editingItem) {
-                      editItem(editingItem.id, newItemName, newItemQuantity, newItemExpiration);
-                    } else {
-                      addItem(newItemName, newItemQuantity, newItemExpiration);
-                    }
-                  }}
-                >
-                  {editingItem ? 'Save Changes' : 'Add Item'}
-                </Button>
+              <TextField
+                label="Item Name"
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                fullWidth
+                margin="normal"
+              />
+              <TextField
+                label="Quantity"
+                type="number"
+                value={newItemQuantity}
+                onChange={(e) => setNewItemQuantity(e.target.value)}
+                fullWidth
+                margin="normal"
+              />
+              <TextField
+                label="Expiration Date"
+                type="date"
+                value={newItemExpiration}
+                onChange={(e) => setNewItemExpiration(e.target.value)}
+                fullWidth
+                margin="normal"
+                InputLabelProps={{ shrink: true }}
+              />
+              <Box display="flex" justifyContent="flex-end" mt={2}>
+                {editingItem ? (
+                  <Button
+                    onClick={() => editItem(editingItem.id, newItemName, newItemQuantity, newItemExpiration)}
+                    variant="contained"
+                    color="primary"
+                  >
+                    Update Item
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => addItem(newItemName, newItemQuantity, newItemExpiration)}
+                    variant="contained"
+                    color="primary"
+                  >
+                    Add Item
+                  </Button>
+                )}
               </Box>
             </CardContent>
           </Card>
 
           <Card sx={{ flex: 2 }}>
-            <CardHeader title="Pantry Items" />
+            <CardHeader title="Pantry Inventory" />
             <CardContent>
-              <TableContainer sx={{ maxHeight: 350, overflowY: 'auto' }}>
-                <Table stickyHeader>
+              <TableContainer>
+                <Table>
                   <TableHead>
                     <TableRow>
                       <TableCell>Name</TableCell>
                       <TableCell>Quantity</TableCell>
-                      <TableCell>Expiration</TableCell>
+                      <TableCell>Expiration Date</TableCell>
                       <TableCell>Actions</TableCell>
                     </TableRow>
                   </TableHead>
@@ -330,10 +330,10 @@ const Page = () => {
                         <TableCell>{item.expiration}</TableCell>
                         <TableCell>
                           <IconButton onClick={() => startEditing(item)}>
-                            <Edit color="primary" />
+                            <Edit />
                           </IconButton>
                           <IconButton onClick={() => deleteItem(item.id)}>
-                            <Delete color="error" />
+                            <Delete />
                           </IconButton>
                         </TableCell>
                       </TableRow>
@@ -344,33 +344,34 @@ const Page = () => {
             </CardContent>
           </Card>
         </Box>
-
         <Button
+          onClick={handleGetRecipes}
           variant="contained"
           color="primary"
-          onClick={handleGetRecipes}
-          sx={{ marginTop: 4 }}
-          disabled={loading}
+          startIcon={<AddShoppingCart />}
+          sx={{ marginTop: 2 }}
         >
           {loading ? <CircularProgress size={24} /> : 'Get Recipe Suggestions'}
         </Button>
-
-        {suggestions && (
-          <Card sx={{ marginTop: 4, paddingLeft: 2 }}>
-            {/* <CardHeader title="Recipe Suggestions" /> */}
+        <Box mt={4}>
+          <Card>
+            <CardHeader title="Recipe Suggestions" />
             <CardContent>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {suggestions}
-              </ReactMarkdown>
+              {suggestions ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{suggestions}</ReactMarkdown>
+              ) : (
+                <Typography>No suggestions available. Add some items to your pantry to get started.</Typography>
+              )}
             </CardContent>
           </Card>
-        )}
+        </Box>
       </Container>
 
       <Footer>
-        <Typography variant="body2">© 2024 Pantry Pal</Typography>
+        <Typography variant="body2" color="inherit">
+          &copy; 2024 Pantry Pal. All rights reserved.
+        </Typography>
       </Footer>
-
       <Analytics />
     </ThemeProvider>
   );
