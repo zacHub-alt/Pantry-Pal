@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Box, Button, Container, Typography, TextField, AppBar, Toolbar, CssBaseline } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { auth, googleProvider } from '../../firebase';
+import { auth, googleProvider } from '../../utils/firebase';
 import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 
 const theme = createTheme({

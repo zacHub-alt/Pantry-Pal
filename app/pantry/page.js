@@ -1,17 +1,18 @@
 'use client';
 
+import { handleExportCSV } from '../../utils/cvs/exportData';
+import { handleExportPDF } from '../../utils/pdf/exportData';
+import {ImageUploaderWithRecognition} from '../components/ImageUploaderWithRecognition';
 import { useState, useEffect } from 'react';
-import { Container, Typography, Box, Button, Card, CardHeader, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, TextField, createTheme, ThemeProvider, Menu, MenuItem, CircularProgress } from '@mui/material';
+import { Container, Typography, Box, Button, Card, CardHeader, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, TextField, createTheme, ThemeProvider, Menu, MenuItem, FormControl, InputLabel, Select } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { AddShoppingCart, Edit, Delete, Logout, AccountCircle } from '@mui/icons-material';
 import { collection, getDocs, getDoc, setDoc, doc, deleteDoc } from 'firebase/firestore';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
-import { firestore, auth } from '../../firebase';
+import { firestore, auth } from '../../utils/firebase';
 import { useRouter } from 'next/navigation';
 import { Analytics } from "@vercel/analytics/react";
 import withAuth from '../protectedRoute';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 
 // Define custom theme
 const theme = createTheme({
@@ -110,9 +111,12 @@ const Page = () => {
   const [anchorEl, setAnchorEl] = useState(null); // For dropdown menu
   const [userEmail, setUserEmail] = useState(''); // State to hold user email
   const [userUid, setUserUid] = useState(''); // State to hold user UID
-  const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState('');
   const router = useRouter(); // Initialize router
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterExpiration, setFilterExpiration] = useState('');
+  const [filterQuantity, setFilterQuantity] = useState('');
 
   useEffect(() => {
     // Fetch the current user's email and UID
@@ -203,32 +207,17 @@ const Page = () => {
     setAnchorEl(null);
   };
 
-  const getInventoryItems = async () => {
-    const snapshot = collection(firestore, `pantry-items-${userUid}`);
-    const docs = await getDocs(snapshot);
-    const inventoryList = docs.docs.map(doc => doc.data().name);
-    return inventoryList;
-  };
-
-  const handleGetRecipes = async () => {
-    setLoading(true);
-    const inventory = await getInventoryItems();
-
-    const response = await fetch('/api/recipe-suggestions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ items: inventory }), // Changed from inventory to items
-    });
-
-    const data = await response.json();
-    setSuggestions(data.recipe); // Adjusted based on the previous response structure
-    setLoading(false);
-  };
+  const filteredItems = pantryItems.filter(item => {
+    const matchesSearchTerm = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = filterCategory === '' || item.category === filterCategory;
+    const matchesExpiration = filterExpiration === '' || item.expiration === filterExpiration;
+    const matchesQuantity = filterQuantity === '' || item.quantity >= filterQuantity;
+    return matchesSearchTerm && matchesCategory && matchesExpiration && matchesQuantity;
+  });
 
   return (
-    <ThemeProvider theme={theme}>
+    
+    <ThemeProvider theme={theme}> 
       <Header>
         <HeaderContent maxWidth="2000">
           <a href="/" style={{ display: 'flex', alignItems: 'center', color: 'inherit', textDecoration: 'none' }}>
@@ -285,23 +274,20 @@ const Page = () => {
                 onChange={(e) => setNewItemExpiration(e.target.value)}
                 fullWidth
                 margin="normal"
-                InputLabelProps={{ shrink: true }}
+                InputLabelProps={{
+                  shrink: true,
+                }}
               />
-              <Box display="flex" justifyContent="flex-end" mt={2}>
+              <Box display="flex" justifyContent="flex-end" marginTop={2}>
                 {editingItem ? (
-                  <Button
-                    onClick={() => editItem(editingItem.id, newItemName, newItemQuantity, newItemExpiration)}
-                    variant="contained"
-                    color="primary"
-                  >
-                    Update Item
-                  </Button>
+                  <>
+                    <Button onClick={() => setEditingItem(null)} color="secondary">Cancel</Button>
+                    <Button onClick={() => editItem(editingItem.id, newItemName, newItemQuantity, newItemExpiration)} color="primary" variant="contained" sx={{ marginLeft: 2 }}>
+                      Save Changes
+                    </Button>
+                  </>
                 ) : (
-                  <Button
-                    onClick={() => addItem(newItemName, newItemQuantity, newItemExpiration)}
-                    variant="contained"
-                    color="primary"
-                  >
+                  <Button onClick={() => addItem(newItemName, newItemQuantity, newItemExpiration)} color="primary" variant="contained">
                     Add Item
                   </Button>
                 )}
@@ -309,68 +295,106 @@ const Page = () => {
             </CardContent>
           </Card>
 
-          <Card sx={{ flex: 2 }}>
-            <CardHeader title="Pantry Inventory" />
+          <Card sx={{ flex: 1 }}>
+            <CardHeader title="Filter Items" />
             <CardContent>
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Name</TableCell>
-                      <TableCell>Quantity</TableCell>
-                      <TableCell>Expiration Date</TableCell>
-                      <TableCell>Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {pantryItems.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>{item.name}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{item.expiration}</TableCell>
-                        <TableCell>
-                          <IconButton onClick={() => startEditing(item)}>
-                            <Edit />
-                          </IconButton>
-                          <IconButton onClick={() => deleteItem(item.id)}>
-                            <Delete />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              <TextField
+                label="Search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                fullWidth
+                margin="normal"
+              />
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Category</InputLabel>
+                <Select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  label="Category"
+                >
+                  <MenuItem value="">All</MenuItem>
+                  <MenuItem value="fruits">Fruits</MenuItem>
+                  <MenuItem value="vegetables">Vegetables</MenuItem>
+                  <MenuItem value="grains">Grains</MenuItem>
+                  <MenuItem value="dairy">Dairy</MenuItem>
+                  <MenuItem value="meat">Meat</MenuItem>
+                  <MenuItem value="spices">Spices</MenuItem>
+                  <MenuItem value="beverages">Beverages</MenuItem>
+                  <MenuItem value="other">Other</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl fullWidth margin="normal">
+                <TextField
+                  label="Minimum Quantity"
+                  type="number"
+                  value={filterQuantity}
+                  onChange={(e) => setFilterQuantity(e.target.value)}
+                  fullWidth
+                  margin="normal"
+                />
+              </FormControl>
+              <FormControl fullWidth margin="normal">
+                <TextField
+                  label="Expiration Date"
+                  type="date"
+                  value={filterExpiration}
+                  onChange={(e) => setFilterExpiration(e.target.value)}
+                  fullWidth
+                  margin="normal"
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+              </FormControl>
             </CardContent>
           </Card>
         </Box>
-        <Button
-          onClick={handleGetRecipes}
-          variant="contained"
-          color="primary"
-          startIcon={<AddShoppingCart />}
-          sx={{ marginTop: 2 }}
-        >
-          {loading ? <CircularProgress size={24} /> : 'Get Recipe Suggestions'}
-        </Button>
-        <Box mt={4}>
-          <Card>
-            <CardHeader title="Recipe Suggestions" />
-            <CardContent>
-              {suggestions ? (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{suggestions}</ReactMarkdown>
-              ) : (
-                <Typography>No suggestions available. Add some items to your pantry to get started.</Typography>
-              )}
-            </CardContent>
-          </Card>
-        </Box>
+
+        <TableContainer component={Card} sx={{ marginTop: 4 }}>
+          <CardHeader title="Pantry Inventory" /> <Box marginTop={4} display="flex" justifyContent="space-between" alignItems="center">
+  <Typography variant="h6" component="div">Pantry Inventory</Typography>
+  <Box>
+    <Button variant="contained" color="primary" onClick={() => handleExportCSV(pantryItems)} sx={{ marginRight: 2 }}>
+      Export CSV
+    </Button>
+    <Button variant="contained" color="primary" onClick={() => handleExportPDF(pantryItems)}>
+      Export PDF
+    </Button>
+  </Box>
+</Box>
+
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Quantity</TableCell>
+                <TableCell>Expiration Date</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredItems.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>{item.name}</TableCell>
+                  <TableCell>{item.quantity}</TableCell>
+                  <TableCell>{item.expiration}</TableCell>
+                  <TableCell align="right">
+                    <IconButton onClick={() => startEditing(item)} color="primary">
+                      <Edit />
+                    </IconButton>
+                    <IconButton onClick={() => deleteItem(item.id)} color="error">
+                      <Delete />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Container>
 
       <Footer>
-        <Typography variant="body2" color="inherit">
-          &copy; 2024 Pantry Pal. All rights reserved.
-        </Typography>
+        <Typography variant="body2">Pantry Pal &copy; 2024. All rights reserved.</Typography>
       </Footer>
       <Analytics />
     </ThemeProvider>

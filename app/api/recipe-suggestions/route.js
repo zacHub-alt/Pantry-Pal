@@ -1,30 +1,28 @@
-import OpenAI from 'openai';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
+    console.log('Request received'); // Log to verify the request is reaching the handler
+
     const { items } = await request.json();
+    console.log('Items:', items); // Log the items to ensure they are received correctly
 
-    if (!items || !Array.isArray(items)) {
-      return new Response(JSON.stringify({ error: 'Invalid items array' }), { status: 400 });
+    const ingredients = items.join(',');
+    console.log('Formatted Ingredients:', ingredients); // Log the formatted ingredients
+
+    const response = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${ingredients}`);
+    console.log('API response status:', response.status); // Log the status code of the response
+    const data = await response.json();
+
+    console.log('API response data:', data); // Log the actual data received
+
+    if (data.meals) {
+      return NextResponse.json({ recipes: data.meals });
+    } else {
+      return NextResponse.json({ error: 'No recipes found' }, { status: 404 });
     }
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo', // or 'gpt-4'
-      messages: [
-        { role: 'system', content: 'You are a helpful assistant.' },
-        { role: 'user', content: `Please suggest a short recipe using these items: ${items.join(', ')}. Be concise and provide only the essential details, including a list of ingredients and brief instructions. The Response should contain two parts. Recipe and Instructions. Write in markdown` }
-      ],
-      max_tokens: 200,
-    });
-
-    const recipe = response.choices[0].message.content.trim();
-    return new Response(JSON.stringify({ recipe }), { status: 200 });
   } catch (error) {
-    console.error(error);
-    return new Response(JSON.stringify({ error: 'Error generating recipe' }), { status: 500 });
+    console.error('Failed to fetch recipe suggestions:', error);
+    return NextResponse.json({ error: 'Failed to fetch recipe suggestions' }, { status: 500 });
   }
 }
